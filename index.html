@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тест доверия</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f3f0e8;
+    --surface: #ebe7dc;
+    --text: #0d0d0d;
+    --muted: #7a7368;
+    --line: rgba(0,0,0,0.14);
+    --line-soft: rgba(0,0,0,0.06);
+    --danger: #2a2a2a;
+    --font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 18px;
+    line-height: 1.55;
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection { background: var(--text); color: var(--bg); }
+
+  .progress-wrap {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 3px; z-index: 100;
+    background: var(--line-soft);
+    display: none;
+  }
+  .progress-fill {
+    height: 100%; background: var(--text);
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    width: 0;
+  }
+  .progress-wrap.show { display: block; }
+
+  .screen {
+    display: none;
+    min-height: 100vh;
+    padding: 3rem 1.5rem;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .screen.active {
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.5s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-40px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes symbolDraw {
+    from { stroke-dashoffset: 400; opacity: 0; }
+    to { stroke-dashoffset: 0; opacity: 1; }
+  }
+  .slide-right { animation: slideInRight 0.45s cubic-bezier(0.4,0,0.2,1); }
+  .slide-left { animation: slideInLeft 0.45s cubic-bezier(0.4,0,0.2,1); }
+
+  .label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .display {
+    font-size: clamp(2.4rem, 7vw, 3.8rem);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+  }
+
+  .subtitle {
+    font-size: 1.05rem;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 480px;
+  }
+
+  .rule {
+    height: 1px;
+    background: var(--text);
+    width: 56px;
+    margin: 1.6rem 0;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 0.5rem; }
+  .field input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    padding: 0.9rem 0;
+    font-family: var(--font);
+    font-size: 1.15rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+    border-radius: 0;
+  }
+  .field input::placeholder { color: var(--muted); opacity: 0.55; }
+  .field input:focus { border-bottom-color: var(--text); }
+  .field input.err { border-bottom-color: #b13a2a; }
+
+  .static-name {
+    padding: 1rem 1.2rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+
+  .btn {
+    font-family: var(--font);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    padding: 1rem 2.2rem;
+    border-radius: 4px;
+    border: 1px solid var(--text);
+    background: var(--text);
+    color: var(--bg);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 56px;
+  }
+  .btn:hover { background: #2c2c2c; border-color: #2c2c2c; }
+  .btn:disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--line);
+  }
+  .btn-ghost:hover { background: transparent; color: var(--text); border-color: var(--text); }
+
+  .icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    font-size: 1.3rem;
+    border-radius: 50%;
+    transition: color 0.2s;
+  }
+  .icon-btn:hover { color: var(--text); }
+
+  .scale-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin: 2.5rem 0 0.8rem;
+  }
+  .pill {
+    aspect-ratio: 1 / 1.1;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 1.6rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pill:hover {
+    border-color: var(--text);
+    background: rgba(0,0,0,0.04);
+  }
+  .pill.selected {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+  }
+  .scale-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    color: var(--muted);
+    padding: 0 4px;
+  }
+
+  .q-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+  }
+  .q-counter { font-size: 1rem; font-weight: 500; color: var(--text); }
+  .q-counter span { color: var(--muted); font-weight: 400; }
+
+  .q-category {
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text);
+    font-weight: 500;
+    margin-bottom: 1.2rem;
+  }
+  .q-text {
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    color: var(--text);
+  }
+
+  .symbol {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    padding: 2.5rem 0;
+    min-height: 140px;
+    color: var(--text);
+    opacity: 0.85;
+  }
+  .symbol svg {
+    width: 90px;
+    height: 90px;
+    overflow: visible;
+  }
+  .symbol svg * {
+    stroke-dasharray: 400;
+    animation: symbolDraw 1.4s ease-out forwards;
+  }
+
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+  }
+
+  .result-num {
+    font-size: clamp(6rem, 18vw, 9rem);
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .result-num-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8rem;
+    margin: 1rem 0 1.5rem;
+  }
+  .result-max { font-size: 2rem; color: var(--muted); font-weight: 400; }
+  .result-bar {
+    height: 6px;
+    background: var(--line-soft);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 2.5rem;
+  }
+  .result-bar-fill {
+    height: 100%;
+    background: var(--text);
+    border-radius: 3px;
+    transition: width 1.4s cubic-bezier(0.4,0,0.2,1);
+    width: 0;
+  }
+  .result-band {
+    padding: 1.6rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin-bottom: 2.5rem;
+  }
+  .result-band-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 0.5rem;
+  }
+  .result-band-desc { font-size: 1rem; line-height: 1.6; color: var(--muted); }
+
+  .breakdown { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+  .breakdown-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 0.95rem;
+  }
+  .breakdown-label { flex: 1; color: var(--text); font-weight: 500; }
+  .breakdown-dots { display: flex; gap: 4px; }
+  .breakdown-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--line);
+  }
+  .breakdown-dot.filled { background: var(--text); border-color: var(--text); }
+  .breakdown-score {
+    font-weight: 700;
+    font-size: 0.95rem;
+    min-width: 1.5ch;
+    text-align: right;
+  }
+
+  #admin-panel {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(243,240,232,0.97);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 2rem 1.5rem;
+  }
+  #admin-panel.open { display: block; animation: fadeIn 0.3s ease; }
+  .admin-card {
+    max-width: 540px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.8rem;
+  }
+  .admin-head { display: flex; align-items: center; justify-content: space-between; }
+  .admin-row { display: flex; flex-direction: column; gap: 0.6rem; }
+  .admin-row label { font-size: 0.8rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.2rem;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    gap: 1rem;
+  }
+  .toggle-row-text { flex: 1; }
+  .toggle-row-text strong { font-weight: 500; font-size: 0.95rem; display: block; margin-bottom: 2px; }
+  .toggle-row-text span { font-size: 0.82rem; color: var(--muted); }
+
+  .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch-slider {
+    position: absolute; inset: 0;
+    background: var(--line);
+    border-radius: 24px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  .switch-slider:before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 3px; top: 3px;
+    background: var(--bg);
+    border-radius: 50%;
+    transition: 0.3s;
+  }
+  .switch input:checked + .switch-slider { background: var(--text); }
+  .switch input:checked + .switch-slider:before { transform: translateX(20px); background: var(--bg); }
+
+  .help-box {
+    background: rgba(0,0,0,0.04);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1.2rem;
+    font-size: 0.86rem;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .help-box strong { color: var(--text); font-weight: 700; display: block; margin-bottom: 0.4rem; }
+  .help-box code {
+    background: var(--bg);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+  }
+
+  .gear {
+    position: fixed;
+    bottom: 1.5rem; right: 1.5rem;
+    width: 40px; height: 40px;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 500;
+    font-size: 1rem;
+  }
+  .gear:hover { color: var(--text); border-color: var(--text); background: var(--surface); }
+
+  .status { padding: 0.85rem 1rem; border-radius: 4px; font-size: 0.88rem; }
+  .status.error { background: rgba(0,0,0,0.05); color: var(--text); border: 1px solid var(--line); }
+  .status.success { background: var(--text); color: var(--bg); }
+  .status.info { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+
+  .dots span {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text);
+    margin: 0 4px;
+    animation: dotPulse 1.4s infinite ease-in-out both;
+  }
+  .dots span:nth-child(1) { animation-delay: -0.32s; }
+  .dots span:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes dotPulse {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  .center-screen { align-items: center; justify-content: center; text-align: center; }
+  .thank-mark { font-size: 3rem; color: var(--text); margin-bottom: 1.5rem; font-weight: 300; }
+
+  @media (max-width: 480px) {
+    .screen { padding: 2rem 1.25rem; }
+    .pill { font-size: 1.3rem; }
+    .admin-card { padding: 1.5rem; }
+    .symbol { padding: 1.8rem 0; min-height: 120px; }
+    .symbol svg { width: 72px; height: 72px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-wrap" id="progress-wrap">
+  <div class="progress-fill" id="progress-fill"></div>
+</div>
+
+<button class="gear" onclick="toggleAdmin()" title="Настройки">⚙</button>
+
+<div id="admin-panel">
+  <div class="admin-card">
+    <div class="admin-head">
+      <span class="label">Настройки</span>
+      <button class="icon-btn" onclick="toggleAdmin()">✕</button>
+    </div>
+
+    <div class="help-box">
+      <strong>Как подключить Notion</strong>
+      1. Зайди на <code>notion.so/my-integrations</code> → создай интеграцию → скопируй токен <code>secret_…</code><br>
+      2. Открой свою базу → меню «…» → Connections → подключи интеграцию<br>
+      3. Скопируй ID базы из URL: <code>notion.so/<strong>ВОТ_ЭТО</strong>?v=…</code><br><br>
+      <strong>Колонки в базе</strong>
+      <code>Имя</code> (Title) · <code>Оценивающий</code> (Text) · <code>Итого</code> (Number) · <code>Результат</code> (Text) · и Number-колонки: <code>Честность</code> <code>Надёжность</code> <code>Последовательность</code> <code>Лояльность</code> <code>Границы</code> <code>Ответственность</code> <code>Безопасность</code> <code>Компетентность</code> <code>Уязвимость</code> <code>Проверка</code>
+    </div>
+
+    <div class="admin-row">
+      <label>Notion токен</label>
+      <div class="field"><input type="password" id="admin-token" placeholder="secret_…"></div>
+    </div>
+
+    <div class="admin-row">
+      <label>ID базы данных</label>
+      <div class="field"><input type="text" id="admin-db" placeholder="32-значный идентификатор"></div>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-row-text">
+        <strong>Показывать результат участнику</strong>
+        <span>Если выкл — увидят «спасибо» вместо баллов</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="admin-show-results">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-row-text">
+        <strong>Фиксировать имя оцениваемого</strong>
+        <span>Имя одно для всех. Выкл — каждый вводит сам</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="admin-fixed-mode">
+        <span class="switch-slider"></span>
+      </label>
+    </div>
+
+    <div class="admin-row" id="admin-fixed-name-row" style="display:none;">
+      <label>Имя оцениваемого</label>
+      <div class="field"><input type="text" id="admin-fixed-name" placeholder="Имя и фамилия"></div>
+    </div>
+
+    <div id="admin-status"></div>
+
+    <div style="display:flex; gap:0.75rem;">
+      <button class="btn" style="flex:1" onclick="saveAdmin()">Сохранить</button>
+      <button class="btn btn-ghost" onclick="testNotion()">Проверить связь</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen active" id="screen-intro">
+  <div style="padding-top: clamp(2rem, 8vh, 5rem); flex:1;">
+    <span class="label">Тест доверия</span>
+    <div class="rule"></div>
+    <h1 class="display">Насколько ты<br>доверяешь<br>этому человеку?</h1>
+    <p class="subtitle" style="margin-top: 1.4rem;">10 вопросов. Оценка от 0 до 5.</p>
+
+    <div style="display:flex; flex-direction:column; gap:1.6rem; margin-top: 3.2rem;">
+      <div id="about-static-wrap" style="display:none;">
+        <span class="label" style="display:block; margin-bottom:0.6rem;">Ты оцениваешь</span>
+        <div class="static-name" id="about-static"></div>
+      </div>
+
+      <div class="field" id="about-input-wrap">
+        <label class="label">Кого ты оцениваешь</label>
+        <input type="text" id="about-name" placeholder="Имя и фамилия" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label class="label">Твоё имя и фамилия</label>
+        <input type="text" id="your-name" placeholder="" autocomplete="off">
+      </div>
+    </div>
+  </div>
+
+  <div style="padding-top: 3rem;">
+    <button class="btn" style="width:100%;" onclick="startSurvey()">Начать тест</button>
+  </div>
+</div>
+
+<div class="screen" id="screen-survey">
+  <div style="flex:1; display:flex; flex-direction:column;">
+    <div class="q-top">
+      <span class="q-counter"><span>Вопрос</span> <strong id="q-num">01</strong> <span>/ 10</span></span>
+      <button class="icon-btn" onclick="prevQ()" id="btn-back" title="Назад">←</button>
+    </div>
+
+    <div id="q-body">
+      <div class="q-category" id="q-category">Честность</div>
+      <p class="q-text" id="q-text"></p>
+
+      <div class="scale-grid" id="scale-pills"></div>
+      <div class="scale-labels">
+        <span>совсем нет</span>
+        <span>точно да</span>
+      </div>
+
+      <div class="symbol" id="symbol"></div>
+    </div>
+
+    <div class="nav-row">
+      <div></div>
+      <button class="btn" id="btn-next" disabled>Далее</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen center-screen" id="screen-submitting">
+  <div class="dots" style="margin-bottom:1.5rem;">
+    <span></span><span></span><span></span>
+  </div>
+  <p class="subtitle">Отправляем результаты</p>
+</div>
+
+<div class="screen" id="screen-result">
+  <div style="padding-top: clamp(1rem, 5vh, 3rem); flex:1;">
+    <span class="label" id="result-about-label">Результат</span>
+    <div class="rule"></div>
+
+    <div class="result-num-row">
+      <span class="result-num" id="result-score">0</span>
+      <span class="result-max">/ 50</span>
+    </div>
+
+    <div class="result-bar">
+      <div class="result-bar-fill" id="result-bar"></div>
+    </div>
+
+    <div class="result-band">
+      <div class="result-band-title" id="result-band-title"></div>
+      <div class="result-band-desc" id="result-band-desc"></div>
+    </div>
+
+    <span class="label" style="display:block; margin-bottom:0.8rem;">По вопросам</span>
+    <div class="breakdown" id="breakdown"></div>
+  </div>
+
+  <div style="padding-top: 2.5rem;">
+    <button class="btn btn-ghost" style="width:100%;" onclick="resetAndIntro()">Пройти ещё раз</button>
+  </div>
+</div>
+
+<div class="screen center-screen" id="screen-thankyou">
+  <div>
+    <div class="thank-mark">✦</div>
+    <h2 class="display" style="font-size: 2.4rem;">Спасибо</h2>
+    <p class="subtitle" style="margin: 1.2rem auto 0; max-width: 360px;">Ответы сохранены.</p>
+    <div style="margin-top: 3rem;">
+      <button class="btn btn-ghost" onclick="resetAndIntro()">Пройти ещё раз</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen center-screen" id="screen-error">
+  <div>
+    <div class="thank-mark">!</div>
+    <h2 class="display" style="font-size: 2rem;">Не отправилось</h2>
+    <p class="subtitle" id="error-msg" style="margin: 1.2rem auto 0; max-width: 380px;"></p>
+    <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top: 2.5rem;">
+      <button class="btn" onclick="submitAnswers()">Попробовать снова</button>
+      <button class="btn btn-ghost" onclick="showResults()">Показать результат без Notion</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  { id: 'Честность',          text: 'Говорит ли человек правду, даже когда ему это неудобно?' },
+  { id: 'Надёжность',         text: 'Выполняет ли человек то, что обещает?' },
+  { id: 'Последовательность', text: 'Предсказуем ли человек в своих поступках, или сегодня он один, завтра другой?' },
+  { id: 'Лояльность',         text: 'Можешь ли ты быть уверен, что он не будет вредить тебе за спиной?' },
+  { id: 'Границы',            text: 'Уважает ли человек твои личные, деловые и эмоциональные границы?' },
+  { id: 'Ответственность',    text: 'Признаёт ли человек свои ошибки без манипуляций, нападения и перекладывания вины?' },
+  { id: 'Безопасность',       text: 'Можешь ли ты рядом с этим человеком быть спокойным, открытым и не ждать подвоха?' },
+  { id: 'Компетентность',     text: 'Способен ли человек справиться с тем, что ты ему доверяешь?' },
+  { id: 'Уязвимость',         text: 'Не использует ли человек твои слабые места, откровенность или личную информацию против тебя?' },
+  { id: 'Проверка',           text: 'Прошёл ли человек с тобой ситуации, где он мог поступить плохо, но поступил достойно?' },
+];
+
+// Minimal geometric symbols, all 100x100 viewBox, stroke-width 1, currentColor.
+// Built with simple shapes only — circles, lines, polygons. No figurative drawing.
+const SYMBOLS = {
+  // Eye — almond + circle + dot. Honesty / clear sight.
+  'Честность': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><path d="M10 50 Q50 20 90 50 Q50 80 10 50 Z"/><circle cx="50" cy="50" r="13"/><circle cx="50" cy="50" r="2.5" fill="currentColor"/></svg>',
+
+  // Pillar — simple column. Reliability / foundation.
+  'Надёжность': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><line x1="20" y1="20" x2="80" y2="20"/><line x1="20" y1="22" x2="80" y2="22"/><line x1="30" y1="22" x2="30" y2="78"/><line x1="70" y1="22" x2="70" y2="78"/><line x1="20" y1="78" x2="80" y2="78"/><line x1="20" y1="80" x2="80" y2="80"/><line x1="15" y1="85" x2="85" y2="85"/></svg>',
+
+  // Sine wave — continuous, returning. Consistency.
+  'Последовательность': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><path d="M5 50 Q 20 25 35 50 T 65 50 T 95 50"/><circle cx="5" cy="50" r="1.5" fill="currentColor"/><circle cx="95" cy="50" r="1.5" fill="currentColor"/></svg>',
+
+  // Two interlocking circles. Loyalty / shared bond.
+  'Лояльность': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><circle cx="38" cy="50" r="22"/><circle cx="62" cy="50" r="22"/></svg>',
+
+  // Square frame with a smaller square inside. Boundaries.
+  'Границы': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="15" y="15" width="70" height="70"/><rect x="35" y="35" width="30" height="30"/></svg>',
+
+  // Circle balanced on triangle. Responsibility / weight.
+  'Ответственность': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="50" cy="38" r="20"/><polygon points="20,82 80,82 50,58"/></svg>',
+
+  // Concentric circles — shelter, contained center. Safety.
+  'Безопасность': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><circle cx="50" cy="50" r="35"/><circle cx="50" cy="50" r="22"/><circle cx="50" cy="50" r="9"/><circle cx="50" cy="50" r="1.5" fill="currentColor"/></svg>',
+
+  // Crossed lines forming a star/compass. Competence / craft.
+  'Компетентность': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><line x1="50" y1="10" x2="50" y2="90"/><line x1="10" y1="50" x2="90" y2="50"/><line x1="22" y1="22" x2="78" y2="78"/><line x1="78" y1="22" x2="22" y2="78"/><circle cx="50" cy="50" r="3" fill="currentColor" stroke="none"/></svg>',
+
+  // Open arc / incomplete circle. Vulnerability / exposed.
+  'Уязвимость': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round"><path d="M 50 15 A 35 35 0 1 0 85 50"/><circle cx="50" cy="15" r="2" fill="currentColor"/><circle cx="85" cy="50" r="2" fill="currentColor"/></svg>',
+
+  // Five-pointed star. Time / endurance / what remains.
+  'Проверка': '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="50,12 60,42 92,42 66,60 76,90 50,72 24,90 34,60 8,42 40,42"/></svg>',
+};
+
+const RESULTS = [
+  { min: 0,  max: 15, title: 'Зона риска',           desc: 'Человека лучше держать на дистанции. Не давать доступ к деньгам, репутации, секретам, важным людям и слабым местам.' },
+  { min: 16, max: 25, title: 'Ограниченное доверие', desc: 'Можно общаться, но с осторожностью. Всё важное — только через рамки, договорённости и проверку.' },
+  { min: 26, max: 35, title: 'Рабочее доверие',      desc: 'Можно сотрудничать, но не давать полный доступ. Подходит для деловых отношений с понятными правилами.' },
+  { min: 36, max: 44, title: 'Сильное доверие',      desc: 'На человека можно опираться. Можно делиться важным, рекомендовать, строить совместные проекты.' },
+  { min: 45, max: 50, title: 'Глубокое доверие',     desc: 'Это редкий уровень. Человеку можно доверять близкий круг, стратегические вопросы, уязвимость и репутацию.' },
+];
+
+let state = { currentQ: 0, answers: {}, aboutName: '', yourName: '' };
+
+let config = {
+  token: '',
+  dbId: '',
+  showResults: true,
+  fixedMode: false,
+  fixedName: '',
+};
+
+function loadConfig() {
+  try {
+    const saved = localStorage.getItem('trust_survey_v3');
+    if (saved) Object.assign(config, JSON.parse(saved));
+  } catch(e) {}
+  applyAdminInputs();
+  applyIntroMode();
+}
+
+function applyAdminInputs() {
+  document.getElementById('admin-token').value = config.token || '';
+  document.getElementById('admin-db').value = config.dbId || '';
+  document.getElementById('admin-show-results').checked = config.showResults !== false;
+  document.getElementById('admin-fixed-mode').checked = !!config.fixedMode;
+  document.getElementById('admin-fixed-name').value = config.fixedName || '';
+  toggleFixedNameRow();
+}
+
+function applyIntroMode() {
+  const fixedWrap = document.getElementById('about-static-wrap');
+  const inputWrap = document.getElementById('about-input-wrap');
+  if (config.fixedMode && config.fixedName) {
+    fixedWrap.style.display = 'block';
+    inputWrap.style.display = 'none';
+    document.getElementById('about-static').textContent = config.fixedName;
+  } else {
+    fixedWrap.style.display = 'none';
+    inputWrap.style.display = 'flex';
+  }
+}
+
+function toggleFixedNameRow() {
+  const checked = document.getElementById('admin-fixed-mode').checked;
+  document.getElementById('admin-fixed-name-row').style.display = checked ? 'flex' : 'none';
+}
+
+document.getElementById('admin-fixed-mode').addEventListener('change', toggleFixedNameRow);
+
+function saveAdmin() {
+  config.token = document.getElementById('admin-token').value.trim();
+  config.dbId = document.getElementById('admin-db').value.trim();
+  config.showResults = document.getElementById('admin-show-results').checked;
+  config.fixedMode = document.getElementById('admin-fixed-mode').checked;
+  config.fixedName = document.getElementById('admin-fixed-name').value.trim();
+  localStorage.setItem('trust_survey_v3', JSON.stringify(config));
+  applyIntroMode();
+  showAdminStatus('Сохранено', 'success');
+  setTimeout(toggleAdmin, 700);
+}
+
+async function testNotion() {
+  const token = document.getElementById('admin-token').value.trim();
+  const dbId = document.getElementById('admin-db').value.trim();
+  if (!token || !dbId) { showAdminStatus('Заполни токен и ID базы', 'error'); return; }
+  showAdminStatus('Проверяем…', 'info');
+  try {
+    const url = 'https://corsproxy.io/?' + encodeURIComponent('https://api.notion.com/v1/databases/' + dbId);
+    const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'Notion-Version': '2022-06-28' } });
+    if (r.ok) showAdminStatus('Связь работает. База найдена.', 'success');
+    else { const d = await r.json().catch(() => ({})); showAdminStatus('Ошибка: ' + (d.message || r.status), 'error'); }
+  } catch(e) { showAdminStatus('Не удалось подключиться. Проверь токен.', 'error'); }
+}
+
+function showAdminStatus(msg, type) {
+  document.getElementById('admin-status').innerHTML = '<div class="status ' + type + '">' + msg + '</div>';
+}
+
+function toggleAdmin() { document.getElementById('admin-panel').classList.toggle('open'); }
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('progress-wrap').classList.toggle('show', name === 'survey');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function resetAndIntro() {
+  state = { currentQ: 0, answers: {}, aboutName: '', yourName: '' };
+  document.getElementById('your-name').value = '';
+  const aboutInput = document.getElementById('about-name');
+  if (aboutInput) { aboutInput.value = ''; aboutInput.classList.remove('err'); }
+  document.getElementById('your-name').classList.remove('err');
+  showScreen('intro');
+}
+
+function startSurvey() {
+  let valid = true;
+
+  const yourName = document.getElementById('your-name').value.trim();
+  const yourNameEl = document.getElementById('your-name');
+  if (!yourName || yourName.split(/\s+/).length < 2) {
+    yourNameEl.classList.add('err');
+    yourNameEl.focus();
+    valid = false;
+  } else {
+    yourNameEl.classList.remove('err');
+  }
+
+  let aboutName;
+  if (config.fixedMode && config.fixedName) {
+    aboutName = config.fixedName;
+  } else {
+    const el = document.getElementById('about-name');
+    aboutName = el.value.trim();
+    if (!aboutName) { el.classList.add('err'); el.focus(); valid = false; }
+    else el.classList.remove('err');
+  }
+
+  if (!valid) return;
+
+  state.yourName = yourName;
+  state.aboutName = aboutName;
+  state.currentQ = 0;
+  state.answers = {};
+  renderQ(0, 'right');
+  showScreen('survey');
+}
+
+function renderQ(idx, dir) {
+  const q = QUESTIONS[idx];
+  const n = idx + 1;
+
+  document.getElementById('q-num').textContent = String(n).padStart(2,'0');
+  document.getElementById('q-category').textContent = q.id;
+  document.getElementById('q-text').textContent = q.text;
+
+  const fill = document.getElementById('progress-fill');
+  fill.style.width = ((idx / QUESTIONS.length) * 100) + '%';
+
+  const pills = document.getElementById('scale-pills');
+  pills.innerHTML = '';
+  for (let i = 0; i <= 5; i++) {
+    const b = document.createElement('button');
+    b.className = 'pill' + (state.answers[q.id] === i ? ' selected' : '');
+    b.textContent = i;
+    b.type = 'button';
+    b.onclick = () => selectScore(i);
+    pills.appendChild(b);
+  }
+
+  const sym = document.getElementById('symbol');
+  sym.innerHTML = SYMBOLS[q.id] || '';
+
+  const hasAns = state.answers[q.id] !== undefined;
+  const isLast = idx === QUESTIONS.length - 1;
+  const next = document.getElementById('btn-next');
+  next.disabled = !hasAns;
+  next.textContent = isLast ? 'Отправить' : 'Далее';
+  next.onclick = isLast ? submitAnswers : nextQ;
+  document.getElementById('btn-back').style.visibility = idx === 0 ? 'hidden' : 'visible';
+
+  const body = document.getElementById('q-body');
+  body.classList.remove('slide-right', 'slide-left');
+  void body.offsetWidth;
+  body.classList.add(dir === 'left' ? 'slide-left' : 'slide-right');
+}
+
+function selectScore(score) {
+  const q = QUESTIONS[state.currentQ];
+  state.answers[q.id] = score;
+  document.querySelectorAll('.pill').forEach((p, i) => p.classList.toggle('selected', i === score));
+  document.getElementById('btn-next').disabled = false;
+}
+
+function nextQ() {
+  if (state.currentQ < QUESTIONS.length - 1) {
+    state.currentQ++;
+    renderQ(state.currentQ, 'right');
+  }
+}
+
+function prevQ() {
+  if (state.currentQ > 0) {
+    state.currentQ--;
+    renderQ(state.currentQ, 'left');
+  }
+}
+
+async function submitAnswers() {
+  showScreen('submitting');
+
+  if (!config.token || !config.dbId) {
+    if (config.showResults !== false) showResults();
+    else showScreen('thankyou');
+    return;
+  }
+
+  const total = QUESTIONS.reduce((s, q) => s + (state.answers[q.id] || 0), 0);
+  const band = RESULTS.find(r => total >= r.min && total <= r.max);
+
+  const properties = {
+    'Имя': { title: [{ text: { content: state.aboutName } }] },
+    'Оценивающий': { rich_text: [{ text: { content: state.yourName } }] },
+    'Итого': { number: total },
+    'Результат': { rich_text: [{ text: { content: band ? band.title : '' } }] },
+  };
+  QUESTIONS.forEach(q => { properties[q.id] = { number: state.answers[q.id] || 0 }; });
+
+  try {
+    const url = 'https://corsproxy.io/?' + encodeURIComponent('https://api.notion.com/v1/pages');
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + config.token,
+        'Notion-Version': '2022-06-28',
+      },
+      body: JSON.stringify({ parent: { database_id: config.dbId }, properties }),
+    });
+    if (res.ok) {
+      if (config.showResults !== false) showResults();
+      else showScreen('thankyou');
+    } else {
+      const d = await res.json().catch(() => ({}));
+      document.getElementById('error-msg').textContent = d.message || 'Проверь токен и ID базы в настройках.';
+      showScreen('error');
+    }
+  } catch(e) {
+    document.getElementById('error-msg').textContent = 'Нет соединения с Notion.';
+    showScreen('error');
+  }
+}
+
+function showResults() {
+  const total = QUESTIONS.reduce((s, q) => s + (state.answers[q.id] || 0), 0);
+  const band = RESULTS.find(r => total >= r.min && total <= r.max) || RESULTS[0];
+
+  document.getElementById('result-about-label').textContent = state.aboutName;
+  document.getElementById('result-score').textContent = total;
+  document.getElementById('result-band-title').textContent = band.title;
+  document.getElementById('result-band-desc').textContent = band.desc;
+
+  const bd = document.getElementById('breakdown');
+  bd.innerHTML = '';
+  QUESTIONS.forEach(q => {
+    const score = state.answers[q.id] || 0;
+    const dots = Array.from({length:6}, (_, i) =>
+      '<div class="breakdown-dot' + (i <= score ? ' filled' : '') + '"></div>').join('');
+    const row = document.createElement('div');
+    row.className = 'breakdown-row';
+    row.innerHTML =
+      '<span class="breakdown-label">' + q.id + '</span>' +
+      '<div class="breakdown-dots">' + dots + '</div>' +
+      '<span class="breakdown-score">' + score + '</span>';
+    bd.appendChild(row);
+  });
+
+  showScreen('result');
+  setTimeout(() => {
+    document.getElementById('result-bar').style.width = (total / 50 * 100) + '%';
+  }, 100);
+}
+
+loadConfig();
+</script>
+</body>
+</html>
